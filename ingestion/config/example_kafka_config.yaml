@@ -1,0 +1,3 @@
+# Example Kafka config
+bootstrap_servers: localhost:9092
+topic: sales_events

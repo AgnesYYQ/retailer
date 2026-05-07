@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Model artifacts
+*.pkl
+*.joblib
+*.h5
+
+# Data files
+train.csv
+actuals.csv
+new_train.csv
+forecast.html
+components.html
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# AWS and config secrets
+*.env
+.env.*
+config/*.yaml
+!config/example_*.yaml

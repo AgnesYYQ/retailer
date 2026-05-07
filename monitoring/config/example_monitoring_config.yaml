@@ -1,0 +1,3 @@
+# Example monitoring config
+alert_threshold: 10  # MAPE threshold for alerting
+drift_window: 30     # Days to check for drift

@@ -1,0 +1,4 @@
+# Example Feast config
+project: retailer_demand
+registry: data/registry.db
+provider: local

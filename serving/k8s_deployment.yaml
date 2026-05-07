@@ -1,0 +1,21 @@
+# k8s_deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demand-forecast-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: demand-forecast-api
+  template:
+    metadata:
+      labels:
+        app: demand-forecast-api
+    spec:
+      containers:
+      - name: api
+        image: your-docker-repo/demand-forecast-api:latest
+        ports:
+        - containerPort: 8080
+      # Add HPA and resource requests/limits as needed
