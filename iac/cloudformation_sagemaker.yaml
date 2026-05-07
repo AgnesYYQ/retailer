@@ -1,0 +1,140 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: SageMaker-based deployment for demand forecasting pipeline (with Kafka, Feast, DynamoDB)
+
+Parameters:
+  SageMakerExecutionRoleArn:
+    Type: String
+    Description: ARN of the IAM role for SageMaker execution
+  ModelImageUri:
+    Type: String
+    Description: ECR URI for the model inference container image
+  TrainingDataS3Uri:
+    Type: String
+    Description: S3 URI for training data
+  KafkaBrokerNodeCount:
+    Type: Number
+    Default: 2
+    Description: Number of MSK broker nodes
+  KafkaBrokerInstanceType:
+    Type: String
+    Default: kafka.t3.small
+    Description: MSK broker instance type
+  DynamoDBTableName:
+    Type: String
+    Default: FeastFeatureTable
+    Description: DynamoDB table for Feast online store
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: List of subnet IDs for MSK brokers (must be in at least two AZs)
+  SecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: List of security group IDs for MSK brokers
+
+Resources:
+  # SageMaker Model/Endpoint/Training
+  SageMakerModel:
+    Type: AWS::SageMaker::Model
+    Properties:
+      ExecutionRoleArn: !Ref SageMakerExecutionRoleArn
+      PrimaryContainer:
+        Image: !Ref ModelImageUri
+        Environment: {}
+
+  SageMakerEndpointConfig:
+    Type: AWS::SageMaker::EndpointConfig
+    Properties:
+      ProductionVariants:
+        - InitialInstanceCount: 1
+          InstanceType: ml.m5.large
+          ModelName: !GetAtt SageMakerModel.ModelName
+          VariantName: AllTraffic
+
+  SageMakerEndpoint:
+    Type: AWS::SageMaker::Endpoint
+    Properties:
+      EndpointConfigName: !Ref SageMakerEndpointConfig
+
+  SageMakerTrainingJob:
+    Type: AWS::SageMaker::TrainingJob
+    Properties:
+      RoleArn: !Ref SageMakerExecutionRoleArn
+      AlgorithmSpecification:
+        TrainingImage: !Ref ModelImageUri
+        TrainingInputMode: File
+      InputDataConfig:
+        - ChannelName: train
+          DataSource:
+            S3DataSource:
+              S3DataType: S3Prefix
+              S3Uri: !Ref TrainingDataS3Uri
+              S3DataDistributionType: FullyReplicated
+      OutputDataConfig:
+        S3OutputPath: !Sub 's3://${AWS::StackName}-output/'
+      ResourceConfig:
+        InstanceType: ml.m5.large
+        InstanceCount: 1
+        VolumeSizeInGB: 10
+      StoppingCondition:
+        MaxRuntimeInSeconds: 3600
+
+  # MSK (Kafka) Cluster
+  MSKCluster:
+    Type: AWS::MSK::Cluster
+    Properties:
+      ClusterName: !Sub '${AWS::StackName}-msk'
+      KafkaVersion: '2.8.1'
+      NumberOfBrokerNodes: !Ref KafkaBrokerNodeCount
+      BrokerNodeGroupInfo:
+        InstanceType: !Ref KafkaBrokerInstanceType
+        ClientSubnets: !Ref SubnetIds
+        SecurityGroups: !Ref SecurityGroupIds
+      EncryptionInfo:
+        EncryptionInTransit:
+          ClientBroker: TLS
+          InCluster: true
+
+  # DynamoDB Table for Feast Online Store
+  FeastDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref DynamoDBTableName
+      AttributeDefinitions:
+        - AttributeName: entity_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: entity_id
+          KeyType: HASH
+      BillingMode: PAYPERREQUEST
+
+  # (Optional) Lambda for streaming ingestion (placeholder)
+  IngestionLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-ingestion'
+      Handler: index.handler
+      Role: !Ref SageMakerExecutionRoleArn
+      Runtime: python3.10
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              return {'statusCode': 200, 'body': 'OK'}
+
+Outputs:
+  SageMakerEndpointName:
+    Description: Name of the SageMaker endpoint
+    Value: !Ref SageMakerEndpoint
+  SageMakerTrainingJobName:
+    Description: Name of the SageMaker training job
+    Value: !Ref SageMakerTrainingJob
+  KafkaClusterArn:
+    Description: ARN of the MSK (Kafka) cluster
+    Value: !Ref MSKCluster
+  FeastDynamoDBTableName:
+    Description: Name of the DynamoDB table for Feast online store
+    Value: !Ref FeastDynamoDBTable
+  SubnetIds:
+    Description: Subnet IDs used for MSK brokers
+    Value: !Ref SubnetIds
+  SecurityGroupIds:
+    Description: Security Group IDs used for MSK brokers
+    Value: !Ref SecurityGroupIds

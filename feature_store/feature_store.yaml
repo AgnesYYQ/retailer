@@ -1,0 +1,9 @@
+project: retailer_demand
+registry: data/registry.db # Local path for Feast registry SQLite database for metadata storage
+provider: aws
+online_store:
+  type: dynamodb  # Use DynamoDB to persist online features to share between training and serving.
+  region: us-east-1  # Change to your AWS region
+  table_name: FeastFeatureTable  # Must match your CloudFormation table
+  aws_access_key_id: YOUR_ACCESS_KEY  # Use IAM roles in production
+  aws_secret_access_key: YOUR_SECRET_KEY

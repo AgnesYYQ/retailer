@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Retailer Demand Forecasting Pipeline (Kafka, Feast, Lambda, DynamoDB)
+
+Resources:
+  # DynamoDB Table for Feast Feature Store
+  FeastFeatureTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: FeastFeatureTable
+      AttributeDefinitions:
+        - AttributeName: entity_id
+          AttributeType: S
+        - AttributeName: event_time
+          AttributeType: S
+      KeySchema:
+        - AttributeName: entity_id
+          KeyType: HASH
+        - AttributeName: event_time
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  # Lambda Function for Model Training
+  ModelTrainingLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: RetailerModelTraining
+      Handler: lambda_function.lambda_handler
+      Role: arn:aws:iam::123456789012:role/lambda-execution-role  # Replace with your IAM role ARN
+      Runtime: python3.10
+      Timeout: 900
+      MemorySize: 2048
+      Code:
+        S3Bucket: your-code-bucket  # Replace with your S3 bucket
+        S3Key: lambda/model_training.zip  # Replace with your code path
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: FeastFeatureTable
+
+  # MSK (Kafka) Cluster (minimal example)
+  KafkaCluster:
+    Type: AWS::MSK::Cluster
+    Properties:
+      ClusterName: RetailerKafkaCluster
+      KafkaVersion: 2.8.1
+      NumberOfBrokerNodes: 2
+      BrokerNodeGroupInfo:
+        InstanceType: kafka.m5.large
+        ClientSubnets:
+          - subnet-xxxxxxxx  # Replace with your subnet IDs
+        SecurityGroups:
+          - sg-xxxxxxxx     # Replace with your security group IDs
+
+Outputs:
+  DynamoDBTableName:
+    Description: Feast feature store DynamoDB table
+    Value: !Ref FeastFeatureTable
+  LambdaFunctionName:
+    Description: Lambda function for model training
+    Value: !Ref ModelTrainingLambda
+  KafkaClusterArn:
+    Description: MSK Kafka cluster ARN
+    Value: !Ref KafkaCluster
