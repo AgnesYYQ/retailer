@@ -1,3 +1,14 @@
+# --- Mock SageMaker Endpoint ---
+def mock_sagemaker_endpoint_predict(input_df):
+    """
+    Simulates a SageMaker endpoint invocation.
+    In reality, this would be a REST call to SageMaker, but here we use the local model.
+    """
+    # Load the model (simulate endpoint container loading the model)
+    with open('prophet_model.pkl', 'rb') as f:
+        model = pickle.load(f)
+    # Run prediction
+    return model.predict(input_df)
 
 import pandas as pd
 import pickle
@@ -56,7 +67,8 @@ print('Historical Prediction:')
 print(forecast_hist[['ds', 'yhat', 'yhat_lower', 'yhat_upper']])
 print()
 
-print("===== Forecast Test (Future Dates) =====")
+
+print("===== Forecast Test (Future Dates, via Mock SageMaker Endpoint) =====")
 # Generate future dates for forecasting
 future_dates = pd.date_range(start=entity_df['date'].max(), periods=8, freq='D')[1:]
 future_entity_df = pd.DataFrame({
@@ -69,8 +81,9 @@ future_feature_df = mock_store.get_online_features(features, future_entity_df.to
 future_feature_df['ds'] = future_entity_df['date']
 # Prophet expects 'y' column, but for forecasting it can be NaN
 future_feature_df['y'] = np.nan
-forecast_future = model.predict(future_feature_df)
-print('Forecast for Future Dates:')
+# Simulate calling the SageMaker endpoint
+forecast_future = mock_sagemaker_endpoint_predict(future_feature_df)
+print('Forecast for Future Dates (via Mock SageMaker Endpoint):')
 print(forecast_future[['ds', 'yhat', 'yhat_lower', 'yhat_upper']])
 print()
 # Note: The forecast uses the trained Prophet model, which was fit on historical data above.
