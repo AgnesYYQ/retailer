@@ -24,8 +24,7 @@ ENV/
 train.csv
 actuals.csv
 new_train.csv
-forecast.html
-components.html
+*.html
 
 # VS Code
 .vscode/
